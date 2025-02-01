@@ -6,7 +6,7 @@ import { buildRequest } from '../../../src/execute/index.js';
 describe('Authorization - OpenAPI Specification 3.0', () => {
   test('should ignore a header parameter named `Authorization`', () => {
     const spec = {
-      openapi: '3.0.0',
+      openapi: '3.0.4',
       paths: {
         '/': {
           get: {
@@ -44,7 +44,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
     describe('Basic', () => {
       test('should encode credentials into the Authorization header', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBasicAuth: {
@@ -93,7 +93,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
 
       test('should consider scheme to be case insensitive', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBasicAuth: {
@@ -141,7 +141,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
 
       test('should not add credentials to operations without the security requirement', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBasicAuth: {
@@ -182,7 +182,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
       });
       test('should allow empty password without casting undefined to string', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBasicAuth: {
@@ -232,7 +232,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
     describe('Bearer', () => {
       test('should add token to the Authorization header', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBearerAuth: {
@@ -280,7 +280,7 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
 
       test('should consider scheme to be case insensitive', () => {
         const spec = {
-          openapi: '3.0.0',
+          openapi: '3.0.4',
           components: {
             securitySchemes: {
               myBearerAuth: {
@@ -509,6 +509,122 @@ describe('Authorization - OpenAPI Specification 3.0', () => {
         credentials: 'same-origin',
         headers: {
           Cookie: 'MyApiKeyCookie=MyToken',
+        },
+      });
+    });
+    test('should add multiple apiKey credentials as a cookie', () => {
+      const spec = {
+        openapi: '3.0.0',
+        components: {
+          securitySchemes: {
+            myApiKey: {
+              type: 'apiKey',
+              name: 'MyApiKeyCookie',
+              in: 'cookie',
+            },
+            myApiKey1: {
+              type: 'apiKey',
+              name: 'MyApiKeyCookie1',
+              in: 'cookie',
+            },
+          },
+        },
+        paths: {
+          '/': {
+            get: {
+              operationId: 'myOperation',
+              security: [
+                {
+                  myApiKey: [],
+                  myApiKey1: [],
+                },
+              ],
+            },
+          },
+        },
+      };
+
+      // when
+      const req = buildRequest({
+        spec,
+        operationId: 'myOperation',
+        securities: {
+          authorized: {
+            myApiKey: {
+              value: 'MyToken',
+            },
+            myApiKey1: {
+              value: 'MyToken1',
+            },
+          },
+        },
+      });
+
+      expect(req).toEqual({
+        method: 'GET',
+        url: '/',
+        credentials: 'same-origin',
+        headers: {
+          Cookie: 'MyApiKeyCookie=MyToken; MyApiKeyCookie1=MyToken1',
+        },
+      });
+    });
+    test('should append apiKey credentials to a cookie', () => {
+      const spec = {
+        openapi: '3.0.0',
+        components: {
+          securitySchemes: {
+            myApiKey: {
+              type: 'apiKey',
+              name: 'MyApiKeyCookie',
+              in: 'cookie',
+            },
+          },
+        },
+        paths: {
+          '/': {
+            get: {
+              operationId: 'myOperation',
+              parameters: [
+                {
+                  name: 'id',
+                  in: 'cookie',
+                  style: 'form',
+                  explode: true,
+                },
+              ],
+              security: [
+                {
+                  myApiKey: [],
+                },
+              ],
+            },
+          },
+        },
+      };
+
+      // when
+      const req = buildRequest({
+        spec,
+        operationId: 'myOperation',
+        parameters: {
+          id: [1, 2, 3],
+        },
+        securities: {
+          authorized: {
+            myApiKey: {
+              value: 'MyToken',
+            },
+          },
+        },
+      });
+
+      expect(req).toEqual({
+        method: 'GET',
+        url: '/',
+        credentials: 'same-origin',
+        headers: {
+          Cookie: 'id=id%3D1%26id%3D2%26id%3D3; MyApiKeyCookie=MyToken',
         },
       });
     });

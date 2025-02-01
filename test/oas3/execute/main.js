@@ -17,7 +17,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         paths: {
           '/one': {
             get: {
@@ -44,7 +44,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a twice-included path parameter request', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         paths: {
           '/one/{myParam}/{myParam}': {
             get: {
@@ -83,7 +83,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId, using the first server by default', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -117,7 +117,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId, using a specfied server', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://not-real-petstore.swagger.io/v2',
@@ -163,7 +163,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId with a requestBody', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -212,7 +212,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should stringify object values of form data bodies', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -264,7 +264,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId with a requestBody, and not be overriden by an invalid Swagger2 body parameter value', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -319,7 +319,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request for the given operationId with a requestBody and a defined requestContentType', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -369,7 +369,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build an operation without a body or Content-Type if the requestBody definition lacks the requestContentType', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -416,7 +416,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request body-bearing operation with a provided requestContentType that appears in the requestBody definition even if no payload is present', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -461,7 +461,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
     it('should build a request body-bearing operation without a provided requestContentType that does not appear in the requestBody definition even if no payload is present', () => {
       // Given
       const spec = {
-        openapi: '3.0.0',
+        openapi: '3.0.4',
         servers: [
           {
             url: 'http://petstore.swagger.io/v2',
@@ -659,7 +659,204 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
         credentials: 'same-origin',
         headers: {
           FooHeader: 'a={"b":{"c":{"d":"e"}}}',
-          Cookie: 'myCookie=foo,{"bar":{"baz":"qux"}}',
+          Cookie: 'myCookie=foo%2C{%22bar%22:{%22baz%22:%22qux%22}}',
+        },
+      });
+    });
+
+    it('should encode objects with a property with `null` value', () => {
+      const req = buildRequest({
+        spec: {
+          openapi: '3.0.0',
+          paths: {
+            '/{pathPartial}': {
+              post: {
+                operationId: 'myOp',
+                parameters: [
+                  {
+                    name: 'query',
+                    in: 'query',
+                    schema: {
+                      type: 'object',
+                    },
+                  },
+                  {
+                    name: 'FooHeader',
+                    in: 'header',
+                    schema: {
+                      type: 'object',
+                    },
+                    explode: true,
+                  },
+                  {
+                    name: 'pathPartial',
+                    in: 'path',
+                    schema: {
+                      type: 'object',
+                    },
+                    explode: true,
+                  },
+                  {
+                    name: 'myCookie',
+                    in: 'cookie',
+                    schema: {
+                      type: 'object',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+        operationId: 'myOp',
+        parameters: {
+          pathPartial: {
+            a: null,
+          },
+          query: {
+            b: null,
+          },
+          FooHeader: {
+            c: null,
+          },
+          myCookie: {
+            d: null,
+          },
+        },
+      });
+
+      expect(req).toEqual({
+        method: 'POST',
+        url: `/a=?b=`,
+        credentials: 'same-origin',
+        headers: {
+          FooHeader: 'c=',
+          Cookie: 'myCookie=d%2C',
+        },
+      });
+    });
+
+    it('should encode arrays with `undefined` items', () => {
+      const req = buildRequest({
+        spec: {
+          openapi: '3.0.0',
+          paths: {
+            '/{pathPartial}': {
+              post: {
+                operationId: 'myOp',
+                parameters: [
+                  {
+                    name: 'query',
+                    in: 'query',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                  {
+                    name: 'FooHeader',
+                    in: 'header',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                  {
+                    name: 'pathPartial',
+                    in: 'path',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                  {
+                    name: 'myCookie',
+                    in: 'cookie',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+        operationId: 'myOp',
+        parameters: {
+          pathPartial: [undefined],
+          query: [undefined],
+          FooHeader: [undefined],
+          myCookie: [undefined],
+        },
+      });
+
+      expect(req).toEqual({
+        method: 'POST',
+        url: `/?query=`,
+        credentials: 'same-origin',
+        headers: {
+          FooHeader: '',
+          Cookie: 'myCookie=',
+        },
+      });
+    });
+
+    it('should encode arrays with multiple `undefined` items', () => {
+      const req = buildRequest({
+        spec: {
+          openapi: '3.0.0',
+          paths: {
+            '/{pathPartial}': {
+              post: {
+                operationId: 'myOp',
+                parameters: [
+                  {
+                    name: 'query',
+                    in: 'query',
+                    schema: {
+                      type: 'array',
+                    },
+                    explode: false,
+                  },
+                  {
+                    name: 'FooHeader',
+                    in: 'header',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                  {
+                    name: 'pathPartial',
+                    in: 'path',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                  {
+                    name: 'myCookie',
+                    in: 'cookie',
+                    schema: {
+                      type: 'array',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+        operationId: 'myOp',
+        parameters: {
+          pathPartial: [undefined, undefined, undefined],
+          query: [undefined, undefined, undefined],
+          FooHeader: [undefined, undefined, undefined],
+          myCookie: [undefined, undefined, undefined],
+        },
+      });
+
+      expect(req).toEqual({
+        method: 'POST',
+        url: `/,,?query=,,`,
+        credentials: 'same-origin',
+        headers: {
+          FooHeader: ',,',
+          Cookie: 'myCookie=%2C%2C',
         },
       });
     });
@@ -866,7 +1063,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
         credentials: 'same-origin',
         headers: {
           FooHeader: '{"foo":"bar"}',
-          Cookie: 'myCookie={"flavor":"chocolate chip"}',
+          Cookie: 'myCookie={%22flavor%22:%22chocolate%20chip%22}',
         },
       });
     });
@@ -1021,7 +1218,7 @@ describe('buildRequest - OpenAPI Specification 3.0', () => {
         credentials: 'same-origin',
         headers: {
           FooHeader: '[{"foo":"bar"}]',
-          Cookie: 'myCookie=[{"flavor":"chocolate chip"}]',
+          Cookie: 'myCookie=[{%22flavor%22:%22chocolate%20chip%22}]',
         },
       });
     });

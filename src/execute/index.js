@@ -1,10 +1,15 @@
-import cookie from 'cookie';
 import { identity } from 'ramda';
-import { isPlainObject } from 'ramda-adjunct';
+import { isPlainObject, isNonEmptyString } from 'ramda-adjunct';
 import {
   test as testServerURLTemplate,
   substitute as substituteServerURLTemplate,
 } from 'openapi-server-url-templating';
+import {
+  serializeCookie,
+  cookieValueLenientEncoder,
+  cookieNameLenientValidator,
+  cookieValueLenientValidator,
+} from '@swaggerexpert/cookie';
 import { ApiDOMStructuredError } from '@swagger-api/apidom-error';
 import { url } from '@swagger-api/apidom-reference/configuration/empty';
 
@@ -133,7 +138,7 @@ export function buildRequest(options) {
     serverVariableEncoder,
   } = options;
 
-  let { parameters, parameterBuilders } = options;
+  let { parameters, parameterBuilders, baseURL } = options;
 
   const specIsOAS3 = isOpenAPI3(spec);
   if (!parameterBuilders) {
@@ -177,16 +182,18 @@ export function buildRequest(options) {
 
   const { operation = {}, method, pathName } = operationRaw;
 
-  const baseURL = baseUrl({
-    spec,
-    scheme,
-    contextUrl,
-    server,
-    serverVariables,
-    pathName,
-    method,
-    serverVariableEncoder,
-  });
+  baseURL =
+    baseURL ??
+    baseUrl({
+      spec,
+      scheme,
+      contextUrl,
+      server,
+      serverVariables,
+      pathName,
+      method,
+      serverVariableEncoder,
+    });
 
   req.url += baseURL;
 
@@ -292,13 +299,21 @@ export function buildRequest(options) {
   // If the cookie convenience object exists in our request,
   // serialize its content and then delete the cookie object.
   if (req.cookies && Object.keys(req.cookies).length) {
-    const cookieString = Object.keys(req.cookies).reduce((prev, cookieName) => {
-      const cookieValue = req.cookies[cookieName];
-      const prefix = prev ? '&' : '';
-      const stringified = cookie.serialize(cookieName, cookieValue);
-      return prev + prefix + stringified;
-    }, '');
-    req.headers.Cookie = cookieString;
+    const cookieString = serializeCookie(req.cookies, {
+      encoders: {
+        value: cookieValueLenientEncoder,
+      },
+      validators: {
+        name: cookieNameLenientValidator,
+        value: cookieValueLenientValidator,
+      },
+    });
+
+    if (isNonEmptyString(req.headers.Cookie)) {
+      req.headers.Cookie += `; ${cookieString}`;
+    } else {
+      req.headers.Cookie = cookieString;
+    }
   }
 
   if (req.cookies) {

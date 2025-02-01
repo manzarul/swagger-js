@@ -60,6 +60,27 @@ describe('constructor', () => {
       });
     });
 
+    test('should accept pathDiscriminator', async () => {
+      const spec = {
+        one: {
+          $ref: '#/two',
+        },
+        two: {
+          hi: 'hello',
+        },
+      };
+      const client = await SwaggerClient({ spec, pathDiscriminator: ['two'] });
+
+      expect(client.spec).toEqual({
+        one: {
+          $ref: '#/two',
+        },
+        two: {
+          hi: 'hello',
+        },
+      });
+    });
+
     test('should resolve a cyclic spec when baseDoc is specified', async () => {
       const spec = {
         paths: {
@@ -748,7 +769,7 @@ describe('constructor', () => {
 
   describe('skipNormalization', () => {
     const spec = {
-      openapi: '3.0.0',
+      openapi: '3.0.4',
       info: {
         title: 'Cloudpotato - Medwork',
         description: 'The Cloudpotato API',
