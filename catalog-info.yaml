@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: swagger-js
+  annotations:
+    github.com/project-slug: swagger-api/swagger-js
+spec:
+  type: other
+  lifecycle: unknown
